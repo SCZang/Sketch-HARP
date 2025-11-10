@@ -1,6 +1,8 @@
 # Sketch-HARP: Generating Sketches in a Hierarchical Auto-Regressive Process for Flexible Sketch Drawing Manipulation at Stroke-Level
 
-This is the officially released code for Sketch-HARP, a framework to manipulate free-hand sketch drawing by a hierarchical auto-regressive process. Its corresponding article was accepted by **AAAI 2026**, with title and abstract shown below.
+This is the officially released code for Sketch-HARP, a framework to manipulate free-hand sketch drawing by a hierarchical auto-regressive process. Its corresponding article was accepted by **AAAI 2026**, with the title and the abstract shown below.
+
+<img src="https://github.com/SCZang/Sketch-HARP/blob/4293a9492024afb51a068eb22a2a0dad6a5a934f/assets/overview.jpg" width="800" alt="overview"/>
 
 **Title:** Generating Sketches in a Hierarchical Auto-Regressive Process for Flexible Sketch Drawing Manipulation at Stroke-Level
 
