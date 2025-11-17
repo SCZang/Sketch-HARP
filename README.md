@@ -1,11 +1,180 @@
 # Sketch-HARP: Generating Sketches in a Hierarchical Auto-Regressive Process for Flexible Sketch Drawing Manipulation at Stroke-Level
 
-This is the officially released code for Sketch-HARP, a framework to manipulate free-hand sketch drawing by a hierarchical auto-regressive process. Its corresponding article was accepted by **AAAI 2026** (an early access version is available at [arxiv](https://arxiv.org/abs/2511.07889)), with the title and the abstract shown below.
+Sketch-HARP is a framework to manipulate free-hand sketch drawing by a hierarchical auto-regressive process, shown in the overview below. Instead of generating an entire sketch at once, each stroke in a sketch is generated in a three-staged hierarchy: 1) predicting a stroke embedding to represent which stroke is going to be drawn, and 2) anchoring the predicted stroke on the canvas, and 3) translating the embedding to a sequence of drawing actions to form the full sketch. Thus, it is flexible to manipulate stroke-level sketch drawing at any time during generation by adjusting the exposed editable stroke embeddings. 
+
+This is the official released codes, and its corresponding article was accepted by **AAAI 2026** (an early access version is available at [arxiv](https://arxiv.org/abs/2511.07889)).
 
 <img src="https://github.com/SCZang/Sketch-HARP/blob/4293a9492024afb51a068eb22a2a0dad6a5a934f/assets/overview.jpg" width="800" alt="overview"/>
 
-**Title:** Generating Sketches in a Hierarchical Auto-Regressive Process for Flexible Sketch Drawing Manipulation at Stroke-Level
+# Training a Sketch-HARP
 
-**Abstract.** Generating sketches with specific patterns as expected, i.e., manipulating sketches in a controllable way, is a popular task. Recent studies control sketch features at stroke-level by editing values of stroke embeddings as conditions. However, in order to provide generator a global view about what a sketch is going to be drawn, all these edited conditions should be collected and fed into generator simultaneously before generation starts, i.e., no further manipulation is allowed during sketch generating process. In order to realize sketch drawing manipulation more flexibly, we propose a hierarchical auto-regressive sketch generating process. Instead of generating an entire sketch at once, each stroke in a sketch is generated in a three-staged hierarchy: 1) predicting a stroke embedding to represent which stroke is going to be drawn, and 2) anchoring the predicted stroke on the canvas, and 3) translating the embedding to a sequence of drawing actions to form the full sketch. Moreover, the stroke prediction, anchoring and translation are proceeded auto-regressively, i.e., both the recently generated strokes and their positions are considered to predict the current one, guiding model to produce an appropriate stroke at a suitable position to benefit the full sketch generation. It is flexible to manipulate stroke-level sketch drawing at any time during generation by adjusting the exposed editable stroke embeddings. 
+## Datasets
 
-The source codes and pretrained models are coming soon.
+We use [QuickDraw dataset](https://quickdraw.withgoogle.com/data) to train our Sketch-HARP.
+
+## Required environments
+
+See `requirements.txt`.
+
+## Training
+
+The training settings can be found at the class `HParams` in `train.py`.
+
+```
+data_dir = "/workspace/dataset"      # dataset directory
+categories = ["bee", "bus", "flower", "giraffe", "pig"]  # sketch categories selected for training
+enc_rnn_size_1 = 512                 # hidden state size of the stroke encoder
+enc_rnn_size_2 = 512                 # hidden state size of the sketch encoder
+stroke_emd_size = 128                # stroke embedding size
+dec_rnn_size_1 = 1024                # hidden state size of the stroke decoder
+dec_rnn_size_2 = 1024                # hidden state size of the position decoder
+dec_rnn_size_3 = 1024                # hidden state size of the sequence decoder
+max_stroke_num = 25                  # maximum number of strokes allowed per sketch
+max_stroke_len = 32                  # maximum number of drawing actions allowed per stroke
+zdim = 128                           # latent code size
+lr = 0.001                           # initialized learning rate
+bs = 128                             # mini-batch size
+num_epochs = 100                     # max number of training epochs
+epoch_load = 0                       # load a pre-trained model from this epoch (0 for training from scratch)
+```
+
+After setting, you can simply run
+```
+python train.py
+```
+to starting network training.
+
+# Generating sketches
+
+Generating sketches by using a pre-trained model. We offer two [pretrained models](https://pan.baidu.com/s/1-NkCB4ypdReIX4SzI2SxWA?pwd=hb97) for two datasets, respectively.
+
+```
+python sample.py
+```
+
+In sample.py, 'EPOCH_LOAD' on *line 19* indicates the number of epochs of the pre-trained model, and `NUM_PER_CATEGORY` on *line 20* indicates the number of generated items per category.
+
+
+# Evaluation
+
+We use **CLIP score**, **LPIPS** and **FID** to evaluate the quality of generated sketches, with the calculating codes borrowed from [SketchEdit](https://github.com/CMACH508/SketchEdit). You are able to save the generated sketches in `./results/` and the ground truth sketches in `./GroundTruth/`, respectively, and evaluate the performances.
+
+```
+cd evaluations
+python CLIP_score.py ../results/ ../GroundTruth/ --real_flag img --fake_flag img --device cuda
+python fid_score.py ../results/ ../GroundTruth/ --gpu 0
+python lpips_score.py --path1 ../results/ --path2 ../GroundTruth/
+```
+
+Besides, the metrics, **Rec** and **Ret**, are used to testify whether a method learns accurate and robust sketch representations. For calculating **Rec**, you need to train a [Sketch-a-net](https://arxiv.org/pdf/1501.07873.pdf) for each dataset as the classifier. And for **Ret**, you can run `retrieval.py`  to obtain it with the generated sketches (2500 sketches per category). Details see [link](https://github.com/CMACH508/SP-gra2seq).
+
+# Manipulating sketch drawing at stroke-level
+
+##  Stroke preparation
+
+Save all the stroke embeddings (as well as their corresponding positions and sequence of drawing actions) of all sketches in test set in `./BASE_DIR/` (**line 20** in save_stroke.py).
+
+```python
+cd manipulation
+python save_stroke.py
+```
+
+## Replacement
+
+```
+TARGET_CATEGORY = 1      # The target sketch (category) to be manipulated
+TARGET_SAMPLE_IDX = 2    # The target sketch sample to be manipulated
+TARGET_STROKE_IDX = 3    # The target sketch stroke to be manipulated
+SOURCE_EMBEDDING_PATH = "./BASE_DIR/source_sketch/source_stroke_emb.npy"   # The selected source stroke embedding
+```
+
+Replacing sketch strokes has three steps:
+1) Select the target sketch (to be manipulated) by `TARGET_CATEGORY` and `TARGET_SAMPLE_IDX`, and pick the target stroke (to be manipulated) by `TARGET_STROKE_IDX`.
+2) Select the source stroke (providing the manipulating source stroke embedding(s)) in the `SOURCE_EMBEDDING_PATH`.
+3) Run 
+```
+python replace.py
+```
+and you will find the manipulated sketches stored in './sample/' fold.
+
+
+## Expansion
+
+```
+TARGET_CATEGORY = 3       # The target sketch (category) to be manipulated
+TARGET_SAMPLE_IDX = 36    # The target sketch sample to be manipulated
+INJECT_STROKE_EMB_DIR = { #start with 1 stroke,If starting with multiple strokes, increase the number of input dictionaries.
+    0: {                                           # the first selected soure stroke used for expansion
+        "e": "/stroke_save/sample_8_10/z_00.npy",  # dir of the selcted stroke embedding
+        "p": torch.tensor([0.0, 0.0]).cuda(),      # dir of the starting position of the selcted stroke embedding
+        "s": /stroke_save/sample_8_10/s_00.npy"    # dif of the corresponding sequence of drawing actions 
+    },
+    1: {                                            # the second selected soure stroke used for expansion
+        "e": "/stroke_save/sample_8_10/z_00.npy",
+        "p": torch.tensor([0.0, 0.0]).cuda(),
+        "s": /stroke_save/sample_8_10/s_00.npy"
+    },
+}
+```
+
+Expanding sketch strokes has three steps:
+1) Select the target sketch (to be manipulated) by `TARGET_CATEGORY` and `TARGET_SAMPLE_IDX`, and pick the target stroke (to be manipulated) by `TARGET_STROKE_IDX`.
+2) Select the source stroke (providing the manipulating source stroke embedding(s)) in the `SOURCE_EMBEDDING_PATH`.
+3) Run 
+```
+python expansion.py
+```
+and you will find the manipulated sketches stored in './sample/' fold.
+
+## Erasion
+
+```
+TARGET_CATEGORY = 3       # The target sketch (category) to be manipulated
+TARGET_SAMPLE_IDX = 36    # The target sketch sample to be manipulated
+DELETE_INDICES = [0, 3]   # indexes of strokes to be erased
+```
+
+
+
+```
+python expansion.py
+```
+
+
+
+## Flexible Sketch Manipulation
+
+```
+TARGET_CATEGORY = 1               # The target sketch (category) to be manipulated
+TARGET_SAMPLE_IDX = 2             # The target sketch sample to be manipulated
+TARGET_STROKE_IDX = 3             # The target sketch stroke to be manipulated
+REPLACE_DICT={
+  TARGET_STROKE_IDX: './source_stroke_emb.npy'  # insert the stroke embedding from `.npy` to replace the target one indexed as TARGET_STROKE_IDX
+}
+```
+
+
+```python
+python manipulate.py
+```
+
+
+# Citation
+If you find this project useful for academic purposes, please cite it as:
+
+```
+@article{zang2025generating,
+  title={Generating Sketches in a Hierarchical Auto-Regressive Process for Flexible Sketch Drawing Manipulation at Stroke-Level},
+  author={Zang, Sicong and Gao, Shuhui and Fang, Zhijun},
+  journal={arXiv preprint arXiv:2511.07889},
+  year={2025}
+}
+```
+
+
+
+
+
+
+
+
