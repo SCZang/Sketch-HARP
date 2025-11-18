@@ -44,7 +44,7 @@ python train.py
 ```
 to starting network training.
 
-# Generating sketches
+## Generating sketches
 
 Generating sketches by using a pre-trained model. We offer two [pretrained models](https://pan.baidu.com/s/1-NkCB4ypdReIX4SzI2SxWA?pwd=hb97) for two datasets, respectively.
 
@@ -52,10 +52,9 @@ Generating sketches by using a pre-trained model. We offer two [pretrained model
 python sample.py
 ```
 
-In sample.py, 'EPOCH_LOAD' on *line 19* indicates the number of epochs of the pre-trained model, and `NUM_PER_CATEGORY` on *line 20* indicates the number of generated items per category.
+In `sample.py`, `EPOCH_LOAD` in *line 19* indicates the number of epochs of the pre-trained model, and `NUM_PER_CATEGORY` in *line 20* indicates the number of generated items per category.
 
-
-# Evaluation
+## Evaluation
 
 We use **CLIP score**, **LPIPS** and **FID** to evaluate the quality of generated sketches, with the calculating codes borrowed from [SketchEdit](https://github.com/CMACH508/SketchEdit). You are able to save the generated sketches in `./results/` and the ground truth sketches in `./GroundTruth/`, respectively, and evaluate the performances.
 
@@ -72,92 +71,81 @@ Besides, the metrics, **Rec** and **Ret**, are used to testify whether a method 
 
 ##  Stroke preparation
 
-Save all the stroke embeddings (as well as their corresponding positions and sequence of drawing actions) of all sketches in test set in `./BASE_DIR/` (**line 20** in save_stroke.py).
-
-```python
+Before applying sketch manipulation, we prepare stroke (embeddings) from sketches in test set, and these strokes would be used as elements in sketch manipulation. You are able to run
+```
 cd manipulation
 python save_stroke.py
 ```
+to save all the stroke embeddings (as well as their corresponding positions and sequence of drawing actions) captured from sketches into `./BASE_DIR/` (*line 20* in `save_stroke.py`).
 
 ## Replacement
 
+<img src="/assets/replacement.png" width="600" alt="replacement"/>
+
 ```
-TARGET_CATEGORY = 1      # The target sketch (category) to be manipulated
-TARGET_SAMPLE_IDX = 2    # The target sketch sample to be manipulated
-TARGET_STROKE_IDX = 3    # The target sketch stroke to be manipulated
-SOURCE_EMBEDDING_PATH = "./BASE_DIR/source_sketch/source_stroke_emb.npy"   # The selected source stroke embedding
+TARGET_CATEGORY = 1                                  # the target sketch category
+TARGET_SAMPLE_IDX = 2                                # the target sketch sample
+TARGET_STROKE_IDX = 3                                # the target stroke to be manipulated
+SOURCE_EMBEDDING_PATH = "./source_stroke_emb.npy"    # the selected source stroke embedding
 ```
 
 Replacing sketch strokes has three steps:
-1) Select the target sketch (to be manipulated) by `TARGET_CATEGORY` and `TARGET_SAMPLE_IDX`, and pick the target stroke (to be manipulated) by `TARGET_STROKE_IDX`.
-2) Select the source stroke (providing the manipulating source stroke embedding(s)) in the `SOURCE_EMBEDDING_PATH`.
+1) Select the target sketch (to be manipulated) by `TARGET_CATEGORY` and `TARGET_SAMPLE_IDX`, and pick the target stroke (to be replaced) by `TARGET_STROKE_IDX`.
+2) Select the source stroke (providing the manipulating source stroke embedding(s)) by `SOURCE_EMBEDDING_PATH`.
 3) Run 
 ```
 python replace.py
 ```
-and you will find the manipulated sketches stored in './sample/' fold.
+and you will find the manipulated sketches stored in './sample/'.
 
 
 ## Expansion
 
+<img src="/assets/expansion.png" width="600" alt="expansion"/>
+
 ```
-TARGET_CATEGORY = 3       # The target sketch (category) to be manipulated
-TARGET_SAMPLE_IDX = 36    # The target sketch sample to be manipulated
-INJECT_STROKE_EMB_DIR = { #start with 1 stroke,If starting with multiple strokes, increase the number of input dictionaries.
-    0: {                                           # the first selected soure stroke used for expansion
-        "e": "/stroke_save/sample_8_10/z_00.npy",  # dir of the selcted stroke embedding
-        "p": torch.tensor([0.0, 0.0]).cuda(),      # dir of the starting position of the selcted stroke embedding
-        "s": /stroke_save/sample_8_10/s_00.npy"    # dif of the corresponding sequence of drawing actions 
+TARGET_CATEGORY = 3                                # the target sketch category
+TARGET_SAMPLE_IDX = 36                             # the target sketch sample
+INJECT_STROKE_EMB_DIR = {
+    0: {                                           # the first source stroke to be injected into sketch drawing
+        "e": "/stroke_save/sample_8_10/z_00.npy",  # the selcted stroke embedding
+        "p": torch.tensor([0.0, 0.0]).cuda(),      # its starting position
+        "s": /stroke_save/sample_8_10/s_00.npy"    # its corresponding sequence of drawing actions 
     },
-    1: {                                            # the second selected soure stroke used for expansion
-        "e": "/stroke_save/sample_8_10/z_00.npy",
+    1: {                                           # the second source stroke to be injected into sketch drawing
+        "e": "/stroke_save/sample_9_20/z_01.npy",
         "p": torch.tensor([0.0, 0.0]).cuda(),
-        "s": /stroke_save/sample_8_10/s_00.npy"
+        "s": /stroke_save/sample_9_20/s_01.npy"
     },
 }
 ```
 
 Expanding sketch strokes has three steps:
-1) Select the target sketch (to be manipulated) by `TARGET_CATEGORY` and `TARGET_SAMPLE_IDX`, and pick the target stroke (to be manipulated) by `TARGET_STROKE_IDX`.
-2) Select the source stroke (providing the manipulating source stroke embedding(s)) in the `SOURCE_EMBEDDING_PATH`.
+1) Select the target sketch (to be manipulated) by `TARGET_CATEGORY` and `TARGET_SAMPLE_IDX`.
+2) Select the source stroke(s) (to be injected into sketch drawing) by `INJECT_STROKE_EMB_DIR`.
 3) Run 
 ```
-python expansion.py
+python expand.py
 ```
-and you will find the manipulated sketches stored in './sample/' fold.
+and you will find the manipulated sketches stored in './sample/'.
 
 ## Erasion
+
+<img src="/assets/erasion.png" width="600" alt="erasion"/>
 
 ```
 TARGET_CATEGORY = 3       # The target sketch (category) to be manipulated
 TARGET_SAMPLE_IDX = 36    # The target sketch sample to be manipulated
 DELETE_INDICES = [0, 3]   # indexes of strokes to be erased
 ```
-
-
-
+Erasing sketch strokes has three steps:
+1) Select the target sketch (to be manipulated) by `TARGET_CATEGORY` and `TARGET_SAMPLE_IDX`.
+2) Select the target stroke(s) (to be erased) by `DELETE_INDICES`.
+3) Run 
 ```
-python expansion.py
+python erase.py
 ```
-
-
-
-## Flexible Sketch Manipulation
-
-```
-TARGET_CATEGORY = 1               # The target sketch (category) to be manipulated
-TARGET_SAMPLE_IDX = 2             # The target sketch sample to be manipulated
-TARGET_STROKE_IDX = 3             # The target sketch stroke to be manipulated
-REPLACE_DICT={
-  TARGET_STROKE_IDX: './source_stroke_emb.npy'  # insert the stroke embedding from `.npy` to replace the target one indexed as TARGET_STROKE_IDX
-}
-```
-
-
-```python
-python manipulate.py
-```
-
+and you will find the manipulated sketches stored in './sample/'.
 
 # Citation
 If you find this project useful for academic purposes, please cite it as:
